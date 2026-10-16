@@ -1,0 +1,521 @@
+import React, { useState, useEffect } from 'react';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import 'bootstrap-icons/font/bootstrap-icons.css';
+import './App.css';
+
+const DEFAULT_ITEMS = [
+  {
+    id: 1710000000001,
+    type: "Lost",
+    title: "MacBook Air M2 (Space Gray)",
+    category: "Electronics",
+    location: "Central Library",
+    contact: "9876543210",
+    desc: "Left in the 2nd floor reading room near the window desk. Has a black protective case.",
+    date: "2 hours ago"
+  },
+  {
+    id: 1710000000002,
+    type: "Found",
+    title: "Honda Bike Keys with Lanyard",
+    category: "Keys",
+    location: "Student Cafeteria",
+    contact: "9123456789",
+    desc: "Found near the outdoor seating area with a blue college lanyard attached.",
+    date: "Yesterday"
+  },
+  {
+    id: 1710000000003,
+    type: "Lost",
+    title: "Student ID Card & Wallet",
+    category: "Identity/Cards",
+    location: "Sports Complex",
+    contact: "9988776655",
+    desc: "Brown leather wallet containing College ID card, driving license, and library pass.",
+    date: "Yesterday"
+  },
+  {
+    id: 1710000000004,
+    type: "Found",
+    title: "Milton Stainless Steel Water Bottle",
+    category: "Other",
+    location: "Hostel Block A/B",
+    contact: "9822334455",
+    desc: "Silver 1-liter bottle with a slight dent on the bottom rim, left in common study hall.",
+    date: "2 days ago"
+  },
+  {
+    id: 1710000000005,
+    type: "Lost",
+    title: "Data Structures & Algorithms Textbook",
+    category: "Stationery",
+    location: "Main Academic Building",
+    contact: "9765432109",
+    desc: "Hardcover textbook with yellow sticky notes on Chapter 4. Name written on inner cover.",
+    date: "3 days ago"
+  }
+];
+
+export default function App() {
+  const [items, setItems] = useState(() => {
+    const saved = localStorage.getItem('campusTraceReactItems');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {
+        console.error("JSON parse error:", e);
+      }
+    }
+    return DEFAULT_ITEMS;
+  });
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [alertInfo, setAlertInfo] = useState({ type: '', message: '' });
+
+  const [formData, setFormData] = useState({
+    type: '',
+    title: '',
+    category: '',
+    location: '',
+    contact: '',
+    desc: ''
+  });
+
+  const [errors, setErrors] = useState({});
+  const [claimData, setClaimData] = useState({ prn: '', proof: '' });
+
+  useEffect(() => {
+    localStorage.setItem('campusTraceReactItems', JSON.stringify(items));
+  }, [items]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const validateForm = () => {
+    let newErrors = {};
+
+    if (!formData.type) newErrors.type = 'Please select a status type (Lost or Found).';
+    if (!formData.title.trim() || formData.title.trim().length < 3) {
+      newErrors.title = 'Item title must be at least 3 characters long.';
+    }
+    if (!formData.category) newErrors.category = 'Please select an item category.';
+    if (!formData.location) newErrors.location = 'Please select a campus location.';
+    
+    const phoneRegex = /^[6-9]\d{9}$/;
+    if (!phoneRegex.test(formData.contact.trim())) {
+      newErrors.contact = 'Enter a valid 10-digit mobile number.';
+    }
+    if (!formData.desc.trim() || formData.desc.trim().length < 10) {
+      newErrors.desc = 'Description must be at least 10 characters long.';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    if (!validateForm()) {
+      showAlert('danger', 'Please fix the validation errors before submitting.');
+      return;
+    }
+
+    const newItem = {
+      id: Date.now(),
+      ...formData,
+      date: 'Just now'
+    };
+
+    setItems([newItem, ...items]);
+    setFormData({ type: '', title: '', category: '', location: '', contact: '', desc: '' });
+    setErrors({});
+    showAlert('success', 'Item successfully logged and saved to system!');
+
+    const modalEl = document.getElementById('reportModal');
+    const modalInstance = window.bootstrap.Modal.getInstance(modalEl);
+    if (modalInstance) modalInstance.hide();
+  };
+
+  const handleDelete = (id) => {
+    setItems(items.filter(item => item.id !== id));
+    showAlert('info', 'Record removed successfully.');
+  };
+
+  const handleReset = () => {
+    if (window.confirm('Reset all items back to default list?')) {
+      setItems(DEFAULT_ITEMS);
+      showAlert('warning', 'Logs reset to default items.');
+    }
+  };
+
+  const handleClaimSubmit = (e) => {
+    e.preventDefault();
+    setClaimData({ prn: '', proof: '' });
+    const modalEl = document.getElementById('claimModal');
+    const modalInstance = window.bootstrap.Modal.getInstance(modalEl);
+    if (modalInstance) modalInstance.hide();
+    showAlert('success', 'Claim request submitted! Campus Security will verify your ownership.');
+  };
+
+  const showAlert = (type, message) => {
+    setAlertInfo({ type, message });
+    setTimeout(() => setAlertInfo({ type: '', message: '' }), 4000);
+  };
+
+  const filteredItems = items.filter(item => {
+    const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          item.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          item.desc.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
+
+  return (
+    <div className="app-container">
+      <nav className="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow-sm">
+        <div className="container">
+          <a className="navbar-brand fw-bold text-primary" href="#home">
+            <i className="bi bi-geo-alt-fill me-1"></i>Campus<span className="text-white">Trace</span>
+          </a>
+          <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span className="navbar-toggler-icon"></span>
+          </button>
+          <div className="collapse navbar-collapse" id="navbarNav">
+            <ul className="navbar-nav ms-auto align-items-lg-center">
+              <li className="nav-item"><a className="nav-link active" href="#home">Home</a></li>
+              <li className="nav-item"><a className="nav-link" href="#logs">Campus Logs</a></li>
+              <li className="nav-item"><a className="nav-link" href="#how-it-works">How It Works</a></li>
+              <li className="nav-item ms-lg-2 mt-2 mt-lg-0">
+                <button className="btn btn-primary btn-sm px-3 rounded-pill" data-bs-toggle="modal" data-bs-target="#reportModal">
+                  <i className="bi bi-plus-lg me-1"></i> Report Item
+                </button>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </nav>
+
+      <header id="home" className="hero-section text-center text-lg-start">
+        <div className="container">
+          <div className="row align-items-center gy-4">
+            <div className="col-lg-7">
+              <span className="badge bg-info text-dark mb-3 px-3 py-2 rounded-pill">ReactJS Client Application</span>
+              <h1 className="display-4 fw-bold mb-3">Lost Something on Campus? We'll Help You Trace It.</h1>
+              <p className="lead mb-4 text-white-50">An interactive React application connecting students and security to report, validate, and recover lost campus belongings.</p>
+              <div className="d-flex flex-column flex-sm-row gap-3 justify-content-center justify-content-lg-start">
+                <a href="#logs" className="btn btn-light btn-lg px-4 fw-semibold text-primary">Browse Campus Logs</a>
+                <button className="btn btn-outline-light btn-lg px-4 fw-semibold" data-bs-toggle="modal" data-bs-target="#reportModal">Report New Item</button>
+              </div>
+            </div>
+            <div className="col-lg-5">
+              <div className="row g-3">
+                <div className="col-6">
+                  <div className="card stat-card bg-white text-dark p-3 text-center shadow-sm">
+                    <i className="bi bi-box-seam text-primary display-6 mb-2"></i>
+                    <h3 className="fw-bold mb-0">{items.length}</h3>
+                    <small className="text-muted">Items Logged</small>
+                  </div>
+                </div>
+                <div className="col-6">
+                  <div className="card stat-card bg-white text-dark p-3 text-center shadow-sm">
+                    <i className="bi bi-check-circle text-success display-6 mb-2"></i>
+                    <h3 className="fw-bold mb-0">89%</h3>
+                    <small className="text-muted">Recovery Rate</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <section id="logs" className="py-5 bg-light">
+        <div className="container py-4">
+          {alertInfo.message && (
+            <div className={`alert alert-${alertInfo.type} alert-dismissible fade show mb-4`} role="alert">
+              {alertInfo.message}
+              <button type="button" className="btn-close" onClick={() => setAlertInfo({ type: '', message: '' })}></button>
+            </div>
+          )}
+
+          <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-end mb-4 gap-3">
+            <div>
+              <h2 className="fw-bold mb-1">Campus Item Logs</h2>
+              <p className="text-muted mb-0">Live search & category filtering powered by React State</p>
+            </div>
+            <button onClick={handleReset} className="btn btn-outline-danger btn-sm">
+              <i className="bi bi-arrow-counterclockwise me-1"></i> Reset to Default Items
+            </button>
+          </div>
+
+          <div className="row g-3 mb-4">
+            <div className="col-md-7">
+              <div className="input-group">
+                <span className="input-group-text bg-white"><i className="bi bi-search text-muted"></i></span>
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  placeholder="Search by title, location, or description..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="col-md-5">
+              <select 
+                className="form-select"
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+              >
+                <option value="All">All Categories</option>
+                <option value="Electronics">Electronics</option>
+                <option value="Stationery">Books & Stationery</option>
+                <option value="Identity/Cards">ID Cards & Wallets</option>
+                <option value="Keys">Keys & Lanyards</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="row g-4">
+            {filteredItems.length === 0 ? (
+              <div className="col-12 text-center py-5 text-muted">
+                <i className="bi bi-inbox fs-1 d-block mb-2"></i>
+                <h5>No matching items found</h5>
+                <p className="small">Try adjusting your search or category filter.</p>
+              </div>
+            ) : (
+              filteredItems.map(item => {
+                const isLost = item.type === 'Lost';
+                return (
+                  <div key={item.id} className="col-12 col-md-6 col-lg-4">
+                    <div className={`card item-card h-100 ${isLost ? 'lost-card' : 'found-card'}`}>
+                      <span className={`badge status-badge ${isLost ? 'bg-danger' : 'bg-success'}`}>{item.type}</span>
+                      <div className="card-body p-4 d-flex flex-column">
+                        <div className="mb-2 fs-4">
+                          <i className={`bi ${isLost ? 'bi-search text-danger' : 'bi-check-circle text-success'}`}></i>
+                        </div>
+                        <h5 className="card-title fw-bold">{item.title}</h5>
+                        <p className="card-text text-muted small flex-grow-1">{item.desc}</p>
+                        
+                        <ul className="list-unstyled text-secondary small mb-3">
+                          <li><i className="bi bi-folder me-2 text-primary"></i>{item.category}</li>
+                          <li><i className="bi bi-geo-alt me-2 text-danger"></i>{item.location}</li>
+                          <li><i className="bi bi-telephone me-2 text-success"></i>{item.contact}</li>
+                          <li><i className="bi bi-clock me-2 text-muted"></i>{item.date}</li>
+                        </ul>
+
+                        <div className="d-flex gap-2">
+                          <button 
+                            className={`btn btn-sm flex-grow-1 ${isLost ? 'btn-outline-primary' : 'btn-primary'}`} 
+                            data-bs-toggle="modal" 
+                            data-bs-target="#claimModal"
+                          >
+                            {isLost ? 'I Found This' : 'Claim Item'}
+                          </button>
+                          <button onClick={() => handleDelete(item.id)} className="btn btn-outline-danger btn-sm" title="Delete Log">
+                            <i className="bi bi-trash"></i>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section id="how-it-works" className="py-5">
+        <div className="container py-4 text-center">
+          <h2 className="fw-bold mb-3">How CampusTrace Works</h2>
+          <p className="text-muted mb-5">Built with React state management and client-side validation</p>
+          <div className="row g-4">
+            <div className="col-md-4">
+              <div className="p-4 rounded bg-light h-100">
+                <div className="step-icon bg-primary text-white mb-3"><i className="bi bi-pencil-square fs-4"></i></div>
+                <h5 className="fw-bold">1. Input Validation</h5>
+                <p className="text-muted small">Forms check inputs live with meaningful error messages before updating React state.</p>
+              </div>
+            </div>
+            <div className="col-md-4">
+              <div className="p-4 rounded bg-light h-100">
+                <div className="step-icon bg-primary text-white mb-3"><i className="bi bi-search fs-4"></i></div>
+                <h5 className="fw-bold">2. Real-time Filtering</h5>
+                <p className="text-muted small">Search query states instantly filter arrays without page reloads.</p>
+              </div>
+            </div>
+            <div className="col-md-4">
+              <div className="p-4 rounded bg-light h-100">
+                <div className="step-icon bg-primary text-white mb-3"><i className="bi bi-shield-check fs-4"></i></div>
+                <h5 className="fw-bold">3. Persistent Storage</h5>
+                <p className="text-muted small">Records synchronize with browser JSON local storage automatically.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="modal fade" id="reportModal" tabIndex="-1" aria-hidden="true">
+        <div className="modal-dialog modal-dialog-centered">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h5 className="modal-title fw-bold"><i className="bi bi-plus-circle me-2 text-primary"></i>Report an Item</h5>
+              <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div className="modal-body">
+              <form onSubmit={handleSubmit} noValidate>
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">Status Type <span className="text-danger">*</span></label>
+                  <select 
+                    className={`form-select ${errors.type ? 'is-invalid' : ''}`}
+                    name="type"
+                    value={formData.type}
+                    onChange={handleChange}
+                  >
+                    <option value="" disabled>Select Status</option>
+                    <option value="Lost">I Lost an Item</option>
+                    <option value="Found">I Found an Item</option>
+                  </select>
+                  <div className="error-msg">{errors.type}</div>
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">Item Name / Title <span className="text-danger">*</span></label>
+                  <input 
+                    type="text" 
+                    className={`form-control ${errors.title ? 'is-invalid' : ''}`}
+                    name="title"
+                    placeholder="e.g., MacBook Air, Keys"
+                    value={formData.title}
+                    onChange={handleChange}
+                  />
+                  <div className="error-msg">{errors.title}</div>
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">Category <span className="text-danger">*</span></label>
+                  <select 
+                    className={`form-select ${errors.category ? 'is-invalid' : ''}`}
+                    name="category"
+                    value={formData.category}
+                    onChange={handleChange}
+                  >
+                    <option value="" disabled>Select Category</option>
+                    <option value="Electronics">Electronics</option>
+                    <option value="Stationery">Books & Stationery</option>
+                    <option value="Identity/Cards">ID Cards & Wallets</option>
+                    <option value="Keys">Keys & Lanyards</option>
+                    <option value="Other">Other</option>
+                  </select>
+                  <div className="error-msg">{errors.category}</div>
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">Campus Location <span className="text-danger">*</span></label>
+                  <select 
+                    className={`form-select ${errors.location ? 'is-invalid' : ''}`}
+                    name="location"
+                    value={formData.location}
+                    onChange={handleChange}
+                  >
+                    <option value="" disabled>Select Location</option>
+                    <option value="Central Library">Central Library</option>
+                    <option value="Student Cafeteria">Student Cafeteria</option>
+                    <option value="Sports Complex">Sports Complex</option>
+                    <option value="Main Academic Building">Main Academic Building</option>
+                    <option value="Hostel Block A/B">Hostel Block A/B</option>
+                  </select>
+                  <div className="error-msg">{errors.location}</div>
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">Contact Mobile No. <span className="text-danger">*</span></label>
+                  <input 
+                    type="tel" 
+                    className={`form-control ${errors.contact ? 'is-invalid' : ''}`}
+                    name="contact"
+                    placeholder="10-digit mobile number"
+                    value={formData.contact}
+                    onChange={handleChange}
+                  />
+                  <div className="error-msg">{errors.contact}</div>
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">Description <span className="text-danger">*</span></label>
+                  <textarea 
+                    className={`form-control ${errors.desc ? 'is-invalid' : ''}`}
+                    name="desc"
+                    rows="3"
+                    placeholder="Distinct features, color, brand (min 10 chars)..."
+                    value={formData.desc}
+                    onChange={handleChange}
+                  ></textarea>
+                  <div className="error-msg">{errors.desc}</div>
+                </div>
+
+                <button type="submit" className="btn btn-primary w-100 fw-bold py-2">Submit & Validate Record</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="modal fade" id="claimModal" tabIndex="-1" aria-hidden="true">
+        <div className="modal-dialog modal-dialog-centered">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h5 className="modal-title fw-bold"><i className="bi bi-shield-lock me-2 text-success"></i>Verification Claim Request</h5>
+              <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div className="modal-body">
+              <p className="small text-muted">Provide your student details and ownership proof.</p>
+              <form onSubmit={handleClaimSubmit}>
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">Student PRN / Roll No.</label>
+                  <input 
+                    type="text" 
+                    className="form-control" 
+                    placeholder="e.g., 1032210000" 
+                    value={claimData.prn}
+                    onChange={(e) => setClaimData({...claimData, prn: e.target.value})}
+                    required 
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">Ownership Proof</label>
+                  <textarea 
+                    className="form-control" 
+                    rows="3" 
+                    placeholder="Describe unique marks or lock screen wallpaper..."
+                    value={claimData.proof}
+                    onChange={(e) => setClaimData({...claimData, proof: e.target.value})}
+                    required
+                  ></textarea>
+                </div>
+                <button type="submit" className="btn btn-success w-100 fw-bold">Send Claim Request</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <footer className="py-4 border-top border-secondary bg-dark text-light text-center">
+        <div className="container">
+          <p className="mb-1 fw-bold">CampusTrace React Application</p>
+          <p className="small mb-0 text-muted">&copy; 2026 CampusTrace System. Developed for ReactJS Web Practical Assignment.</p>
+        </div>
+      </footer>
+    </div>
+  );
+}

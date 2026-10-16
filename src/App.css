@@ -1,0 +1,69 @@
+:root {
+  --primary-color: #0d6efd;
+  --accent-color: #0dcaf0;
+  --dark-bg: #111827;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  scroll-behavior: smooth;
+  background-color: #f8f9fa;
+}
+
+.hero-section {
+  background: linear-gradient(135deg, #0d6efd 0%, #032830 100%);
+  color: #ffffff;
+  padding: 100px 0 80px;
+}
+
+.stat-card {
+  border: none;
+  border-radius: 12px;
+  transition: transform 0.2s ease-in-out;
+}
+
+.stat-card:hover {
+  transform: translateY(-5px);
+}
+
+.item-card {
+  border: 1px solid #e9ecef;
+  border-radius: 10px;
+  border-left: 5px solid #0d6efd;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.item-card.lost-card {
+  border-left-color: #dc3545;
+}
+
+.item-card.found-card {
+  border-left-color: #198754;
+}
+
+.item-card:hover {
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.status-badge {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+}
+
+.step-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.error-msg {
+  color: #dc3545;
+  font-size: 0.825rem;
+  margin-top: 3px;
+  min-height: 18px;
+}

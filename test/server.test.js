@@ -101,7 +101,14 @@ describe('CampusTrace HTTP routes', () => {
     assert.equal(resetBody.items.length, 5);
   });
 
-  it('returns helpful errors for malformed JSON and unknown routes', async () => {
+  it('serves the built frontend through Express', async () => {
+    const response = await fetch(baseUrl);
+    const html = await response.text();
+    assert.equal(response.status, 200);
+    assert.match(html, /id="root"/);
+  });
+
+  it('returns helpful errors for malformed JSON, oversized bodies, and unknown routes', async () => {
     const malformedResponse = await fetch(`${baseUrl}/api/items`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -109,7 +116,17 @@ describe('CampusTrace HTTP routes', () => {
     });
     assert.equal(malformedResponse.status, 400);
 
+    const oversizedResponse = await fetch(`${baseUrl}/api/items`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ description: 'x'.repeat(17 * 1024) }),
+    });
+    assert.equal(oversizedResponse.status, 413);
+
     const missingResponse = await fetch(`${baseUrl}/api/missing`);
     assert.equal(missingResponse.status, 404);
+
+    const unsupportedResponse = await fetch(`${baseUrl}/api/items`, { method: 'PUT' });
+    assert.equal(unsupportedResponse.status, 404);
   });
 });

@@ -1,7 +1,7 @@
 
 # CampusTrace
 
-CampusTrace is an individual Node.js web application for reporting lost and found items on campus. The React and Vite frontend uses a Node.js HTTP server with modular API routing, server-side validation, and JSON file storage.
+CampusTrace is an individual Express.js web application for reporting lost and found items on campus. The React and Vite frontend uses an Express server with modular API routing, server-side validation, and JSON file storage.
 
 ## Requirements
 
@@ -27,7 +27,7 @@ npm run build
 npm start
 ```
 
-Open `http://localhost:3000`. The Node.js server serves the built frontend and handles API requests. Set the `PORT` environment variable to use a different port.
+Open `http://localhost:3000`. The Express server serves the built frontend and handles API requests. Set the `PORT` environment variable to use a different port.
 
 ## Routes and validation
 
@@ -49,4 +49,4 @@ npm run lint
 npm run build
 ```
 
-The HTTP tests exercise GET, valid and invalid POST inputs, DELETE, reset, and malformed requests against the Node.js server.
+The HTTP tests exercise GET, valid and invalid POST inputs, DELETE, reset, malformed requests, and request-size limits against the Express server.

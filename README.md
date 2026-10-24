@@ -1,1 +1,52 @@
 
+# CampusTrace
+
+CampusTrace is an individual Node.js web application for reporting lost and found items on campus. The React and Vite frontend uses a Node.js HTTP server with modular API routing, server-side validation, and JSON file storage.
+
+## Requirements
+
+- Node.js 20.19+ or 22.12+
+- npm
+
+## Run in development
+
+Open two terminals in the project directory:
+
+```sh
+npm run server
+npm run dev
+```
+
+Open the Vite URL shown in the second terminal. Vite forwards `/api` requests to the Node.js server at `http://localhost:3000`.
+
+## Run as a Node.js web application
+
+```sh
+npm install
+npm run build
+npm start
+```
+
+Open `http://localhost:3000`. The Node.js server serves the built frontend and handles API requests. Set the `PORT` environment variable to use a different port.
+
+## Routes and validation
+
+- `GET /api/items` returns saved item reports.
+- `POST /api/items` validates and saves a lost/found item report.
+- `DELETE /api/items/:id` removes an item report.
+- `POST /api/reset` restores the seeded item reports.
+- `POST /api/claims` validates and saves an ownership claim.
+
+Reports require a valid Lost/Found type, an approved category and campus location, a 3-80 character title, a 10-digit Indian mobile number, and a 10-500 character description. Claims require a 5-20 character alphanumeric PRN/roll number and 10-500 characters of ownership proof. Invalid submissions return HTTP 400 with field-specific errors; successful submissions return a success message.
+
+Item reports and claims are persisted in `server/data/items.json` and `server/data/claims.json`. The server initializes the item file from `server/data/default-items.json` on first run. Runtime data files are ignored by Git.
+
+## Test
+
+```sh
+npm test
+npm run lint
+npm run build
+```
+
+The HTTP tests exercise GET, valid and invalid POST inputs, DELETE, reset, and malformed requests against the Node.js server.

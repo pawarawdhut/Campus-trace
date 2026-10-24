@@ -1,74 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import './App.css';
 
-const DEFAULT_ITEMS = [
-  {
-    id: 1710000000001,
-    type: "Lost",
-    title: "MacBook Air M2 (Space Gray)",
-    category: "Electronics",
-    location: "Central Library",
-    contact: "9876543210",
-    desc: "Left in the 2nd floor reading room near the window desk. Has a black protective case.",
-    date: "2 hours ago"
-  },
-  {
-    id: 1710000000002,
-    type: "Found",
-    title: "Honda Bike Keys with Lanyard",
-    category: "Keys",
-    location: "Student Cafeteria",
-    contact: "9123456789",
-    desc: "Found near the outdoor seating area with a blue college lanyard attached.",
-    date: "Yesterday"
-  },
-  {
-    id: 1710000000003,
-    type: "Lost",
-    title: "Student ID Card & Wallet",
-    category: "Identity/Cards",
-    location: "Sports Complex",
-    contact: "9988776655",
-    desc: "Brown leather wallet containing College ID card, driving license, and library pass.",
-    date: "Yesterday"
-  },
-  {
-    id: 1710000000004,
-    type: "Found",
-    title: "Milton Stainless Steel Water Bottle",
-    category: "Other",
-    location: "Hostel Block A/B",
-    contact: "9822334455",
-    desc: "Silver 1-liter bottle with a slight dent on the bottom rim, left in common study hall.",
-    date: "2 days ago"
-  },
-  {
-    id: 1710000000005,
-    type: "Lost",
-    title: "Data Structures & Algorithms Textbook",
-    category: "Stationery",
-    location: "Main Academic Building",
-    contact: "9765432109",
-    desc: "Hardcover textbook with yellow sticky notes on Chapter 4. Name written on inner cover.",
-    date: "3 days ago"
-  }
-];
-
 export default function App() {
-  const [items, setItems] = useState(() => {
-    const saved = localStorage.getItem('campusTraceReactItems');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      } catch (e) {
-        console.error("JSON parse error:", e);
-      }
-    }
-    return DEFAULT_ITEMS;
-  });
+  const [items, setItems] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -85,10 +22,24 @@ export default function App() {
 
   const [errors, setErrors] = useState({});
   const [claimData, setClaimData] = useState({ prn: '', proof: '' });
+  const [claimErrors, setClaimErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const showAlert = (type, message) => {
+    setAlertInfo({ type, message });
+    setTimeout(() => setAlertInfo({ type: '', message: '' }), 4000);
+  };
 
   useEffect(() => {
-    localStorage.setItem('campusTraceReactItems', JSON.stringify(items));
-  }, [items]);
+    fetch('/api/items')
+      .then(async (response) => {
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message || 'Unable to load campus records.');
+        setItems(result.items);
+      })
+      .catch((error) => showAlert('danger', error.message))
+      .finally(() => setIsLoading(false));
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -98,76 +49,81 @@ export default function App() {
     }
   };
 
-  const validateForm = () => {
-    let newErrors = {};
-
-    if (!formData.type) newErrors.type = 'Please select a status type (Lost or Found).';
-    if (!formData.title.trim() || formData.title.trim().length < 3) {
-      newErrors.title = 'Item title must be at least 3 characters long.';
-    }
-    if (!formData.category) newErrors.category = 'Please select an item category.';
-    if (!formData.location) newErrors.location = 'Please select a campus location.';
-    
-    const phoneRegex = /^[6-9]\d{9}$/;
-    if (!phoneRegex.test(formData.contact.trim())) {
-      newErrors.contact = 'Enter a valid 10-digit mobile number.';
-    }
-    if (!formData.desc.trim() || formData.desc.trim().length < 10) {
-      newErrors.desc = 'Description must be at least 10 characters long.';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (!validateForm()) {
-      showAlert('danger', 'Please fix the validation errors before submitting.');
-      return;
-    }
-
-    const newItem = {
-      id: Date.now(),
-      ...formData,
-      date: 'Just now'
-    };
-
-    setItems([newItem, ...items]);
-    setFormData({ type: '', title: '', category: '', location: '', contact: '', desc: '' });
+    setIsSubmitting(true);
     setErrors({});
-    showAlert('success', 'Item successfully logged and saved to system!');
-
-    const modalEl = document.getElementById('reportModal');
-    const modalInstance = window.bootstrap.Modal.getInstance(modalEl);
-    if (modalInstance) modalInstance.hide();
-  };
-
-  const handleDelete = (id) => {
-    setItems(items.filter(item => item.id !== id));
-    showAlert('info', 'Record removed successfully.');
-  };
-
-  const handleReset = () => {
-    if (window.confirm('Reset all items back to default list?')) {
-      setItems(DEFAULT_ITEMS);
-      showAlert('warning', 'Logs reset to default items.');
+    try {
+      const response = await fetch('/api/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        setErrors(result.errors || {});
+        throw new Error(result.message || 'Unable to submit this report.');
+      }
+      setItems((currentItems) => [result.item, ...currentItems]);
+      setFormData({ type: '', title: '', category: '', location: '', contact: '', desc: '' });
+      showAlert('success', result.message);
+      window.bootstrap.Modal.getInstance(document.getElementById('reportModal'))?.hide();
+    } catch (error) {
+      showAlert('danger', error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleClaimSubmit = (e) => {
-    e.preventDefault();
-    setClaimData({ prn: '', proof: '' });
-    const modalEl = document.getElementById('claimModal');
-    const modalInstance = window.bootstrap.Modal.getInstance(modalEl);
-    if (modalInstance) modalInstance.hide();
-    showAlert('success', 'Claim request submitted! Campus Security will verify your ownership.');
+  const handleDelete = async (id) => {
+    try {
+      const response = await fetch(`/api/items/${id}`, { method: 'DELETE' });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || 'Unable to remove this record.');
+      setItems((currentItems) => currentItems.filter((item) => item.id !== id));
+      showAlert('success', result.message);
+    } catch (error) {
+      showAlert('danger', error.message);
+    }
   };
 
-  const showAlert = (type, message) => {
-    setAlertInfo({ type, message });
-    setTimeout(() => setAlertInfo({ type: '', message: '' }), 4000);
+  const handleReset = async () => {
+    if (window.confirm('Reset all items back to default list?')) {
+      try {
+        const response = await fetch('/api/reset', { method: 'POST' });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message || 'Unable to reset campus records.');
+        setItems(result.items);
+        showAlert('success', result.message);
+      } catch (error) {
+        showAlert('danger', error.message);
+      }
+    }
+  };
+
+  const handleClaimSubmit = async (e) => {
+    e.preventDefault();
+    setClaimErrors({});
+    setIsSubmitting(true);
+    try {
+      const response = await fetch('/api/claims', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(claimData),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        setClaimErrors(result.errors || {});
+        throw new Error(result.message || 'Unable to submit your claim.');
+      }
+      setClaimData({ prn: '', proof: '' });
+      window.bootstrap.Modal.getInstance(document.getElementById('claimModal'))?.hide();
+      showAlert('success', result.message);
+    } catch (error) {
+      showAlert('danger', error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const filteredItems = items.filter(item => {
@@ -207,9 +163,9 @@ export default function App() {
         <div className="container">
           <div className="row align-items-center gy-4">
             <div className="col-lg-7">
-              <span className="badge bg-info text-dark mb-3 px-3 py-2 rounded-pill">ReactJS Client Application</span>
+              <span className="badge bg-info text-dark mb-3 px-3 py-2 rounded-pill">Node.js Campus Application</span>
               <h1 className="display-4 fw-bold mb-3">Lost Something on Campus? We'll Help You Trace It.</h1>
-              <p className="lead mb-4 text-white-50">An interactive React application connecting students and security to report, validate, and recover lost campus belongings.</p>
+              <p className="lead mb-4 text-white-50">A campus application connecting students and security to report, validate, and recover lost belongings with server-side validation.</p>
               <div className="d-flex flex-column flex-sm-row gap-3 justify-content-center justify-content-lg-start">
                 <a href="#logs" className="btn btn-light btn-lg px-4 fw-semibold text-primary">Browse Campus Logs</a>
                 <button className="btn btn-outline-light btn-lg px-4 fw-semibold" data-bs-toggle="modal" data-bs-target="#reportModal">Report New Item</button>
@@ -249,7 +205,7 @@ export default function App() {
           <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-end mb-4 gap-3">
             <div>
               <h2 className="fw-bold mb-1">Campus Item Logs</h2>
-              <p className="text-muted mb-0">Live search & category filtering powered by React State</p>
+              <p className="text-muted mb-0">Live search with reports stored by the Node.js server</p>
             </div>
             <button onClick={handleReset} className="btn btn-outline-danger btn-sm">
               <i className="bi bi-arrow-counterclockwise me-1"></i> Reset to Default Items
@@ -286,7 +242,12 @@ export default function App() {
           </div>
 
           <div className="row g-4">
-            {filteredItems.length === 0 ? (
+            {isLoading ? (
+              <div className="col-12 text-center py-5 text-muted" role="status">
+                <span className="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                Loading campus records...
+              </div>
+            ) : filteredItems.length === 0 ? (
               <div className="col-12 text-center py-5 text-muted">
                 <i className="bi bi-inbox fs-1 d-block mb-2"></i>
                 <h5>No matching items found</h5>
@@ -338,27 +299,27 @@ export default function App() {
       <section id="how-it-works" className="py-5">
         <div className="container py-4 text-center">
           <h2 className="fw-bold mb-3">How CampusTrace Works</h2>
-          <p className="text-muted mb-5">Built with React state management and client-side validation</p>
+          <p className="text-muted mb-5">A Node.js server handles routing, data storage, and input validation.</p>
           <div className="row g-4">
             <div className="col-md-4">
               <div className="p-4 rounded bg-light h-100">
                 <div className="step-icon bg-primary text-white mb-3"><i className="bi bi-pencil-square fs-4"></i></div>
                 <h5 className="fw-bold">1. Input Validation</h5>
-                <p className="text-muted small">Forms check inputs live with meaningful error messages before updating React state.</p>
+                <p className="text-muted small">The server validates each report and claim before accepting it.</p>
               </div>
             </div>
             <div className="col-md-4">
               <div className="p-4 rounded bg-light h-100">
                 <div className="step-icon bg-primary text-white mb-3"><i className="bi bi-search fs-4"></i></div>
                 <h5 className="fw-bold">2. Real-time Filtering</h5>
-                <p className="text-muted small">Search query states instantly filter arrays without page reloads.</p>
+                <p className="text-muted small">GET requests load campus records; POST requests submit reports and claims.</p>
               </div>
             </div>
             <div className="col-md-4">
               <div className="p-4 rounded bg-light h-100">
                 <div className="step-icon bg-primary text-white mb-3"><i className="bi bi-shield-check fs-4"></i></div>
                 <h5 className="fw-bold">3. Persistent Storage</h5>
-                <p className="text-muted small">Records synchronize with browser JSON local storage automatically.</p>
+                <p className="text-muted small">Reports and claims are saved to server-side JSON data files.</p>
               </div>
             </div>
           </div>
@@ -464,7 +425,9 @@ export default function App() {
                   <div className="error-msg">{errors.desc}</div>
                 </div>
 
-                <button type="submit" className="btn btn-primary w-100 fw-bold py-2">Submit & Validate Record</button>
+                <button type="submit" className="btn btn-primary w-100 fw-bold py-2" disabled={isSubmitting}>
+                  {isSubmitting ? 'Submitting...' : 'Submit & Validate Record'}
+                </button>
               </form>
             </div>
           </div>
@@ -480,30 +443,38 @@ export default function App() {
             </div>
             <div className="modal-body">
               <p className="small text-muted">Provide your student details and ownership proof.</p>
-              <form onSubmit={handleClaimSubmit}>
+              <form onSubmit={handleClaimSubmit} noValidate>
                 <div className="mb-3">
                   <label className="form-label fw-semibold">Student PRN / Roll No.</label>
                   <input 
                     type="text" 
-                    className="form-control" 
+                    className={`form-control ${claimErrors.prn ? 'is-invalid' : ''}`}
                     placeholder="e.g., 1032210000" 
                     value={claimData.prn}
-                    onChange={(e) => setClaimData({...claimData, prn: e.target.value})}
-                    required 
+                    onChange={(e) => {
+                      setClaimData({ ...claimData, prn: e.target.value });
+                      setClaimErrors((currentErrors) => ({ ...currentErrors, prn: '' }));
+                    }}
                   />
+                  <div className="error-msg">{claimErrors.prn}</div>
                 </div>
                 <div className="mb-3">
                   <label className="form-label fw-semibold">Ownership Proof</label>
                   <textarea 
-                    className="form-control" 
+                    className={`form-control ${claimErrors.proof ? 'is-invalid' : ''}`}
                     rows="3" 
                     placeholder="Describe unique marks or lock screen wallpaper..."
                     value={claimData.proof}
-                    onChange={(e) => setClaimData({...claimData, proof: e.target.value})}
-                    required
+                    onChange={(e) => {
+                      setClaimData({ ...claimData, proof: e.target.value });
+                      setClaimErrors((currentErrors) => ({ ...currentErrors, proof: '' }));
+                    }}
                   ></textarea>
+                  <div className="error-msg">{claimErrors.proof}</div>
                 </div>
-                <button type="submit" className="btn btn-success w-100 fw-bold">Send Claim Request</button>
+                <button type="submit" className="btn btn-success w-100 fw-bold" disabled={isSubmitting}>
+                  {isSubmitting ? 'Submitting...' : 'Send Claim Request'}
+                </button>
               </form>
             </div>
           </div>
@@ -512,8 +483,8 @@ export default function App() {
 
       <footer className="py-4 border-top border-secondary bg-dark text-light text-center">
         <div className="container">
-          <p className="mb-1 fw-bold">CampusTrace React Application</p>
-          <p className="small mb-0 text-muted">&copy; 2026 CampusTrace System. Developed for ReactJS Web Practical Assignment.</p>
+          <p className="mb-1 fw-bold">CampusTrace Node.js Application</p>
+          <p className="small mb-0 text-muted">&copy; 2026 CampusTrace System.</p>
         </div>
       </footer>
     </div>

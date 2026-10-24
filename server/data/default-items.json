@@ -1,0 +1,52 @@
+[
+  {
+    "id": 1710000000001,
+    "type": "Lost",
+    "title": "MacBook Air M2 (Space Gray)",
+    "category": "Electronics",
+    "location": "Central Library",
+    "contact": "9876543210",
+    "desc": "Left in the 2nd floor reading room near the window desk. Has a black protective case.",
+    "date": "2 hours ago"
+  },
+  {
+    "id": 1710000000002,
+    "type": "Found",
+    "title": "Honda Bike Keys with Lanyard",
+    "category": "Keys",
+    "location": "Student Cafeteria",
+    "contact": "9123456789",
+    "desc": "Found near the outdoor seating area with a blue college lanyard attached.",
+    "date": "Yesterday"
+  },
+  {
+    "id": 1710000000003,
+    "type": "Lost",
+    "title": "Student ID Card & Wallet",
+    "category": "Identity/Cards",
+    "location": "Sports Complex",
+    "contact": "9988776655",
+    "desc": "Brown leather wallet containing College ID card, driving license, and library pass.",
+    "date": "Yesterday"
+  },
+  {
+    "id": 1710000000004,
+    "type": "Found",
+    "title": "Milton Stainless Steel Water Bottle",
+    "category": "Other",
+    "location": "Hostel Block A/B",
+    "contact": "9822334455",
+    "desc": "Silver 1-liter bottle with a slight dent on the bottom rim, left in common study hall.",
+    "date": "2 days ago"
+  },
+  {
+    "id": 1710000000005,
+    "type": "Lost",
+    "title": "Data Structures & Algorithms Textbook",
+    "category": "Stationery",
+    "location": "Main Academic Building",
+    "contact": "9765432109",
+    "desc": "Hardcover textbook with yellow sticky notes on Chapter 4. Name written on inner cover.",
+    "date": "3 days ago"
+  }
+]

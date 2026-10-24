@@ -29,6 +29,18 @@ npm start
 
 Open `http://localhost:3000`. The Express server serves the built frontend and handles API requests. Set the `PORT` environment variable to use a different port.
 
+## Deploy to Render
+
+This repository includes a Render Blueprint in `render.yaml`. To deploy:
+
+1. Push the project to GitHub.
+2. Sign in to Render and choose **New + → Blueprint**.
+3. Connect the GitHub repository containing this project and confirm the `campus-trace` web service.
+4. Wait for the build and deploy to finish. Open the `onrender.com` URL shown by Render.
+5. Check that the app loads and that `<your-render-url>/api/items` returns the seeded items.
+
+The Blueprint uses Render's free web-service plan for a presentation/demo. Its filesystem is ephemeral, so reports and claims submitted by users can be lost when the service restarts or redeploys. The included JSON files are suitable for a demo, not durable production storage. Use a persistent disk or migrate the app to a managed database before relying on stored records.
+
 ## Routes and validation
 
 - `GET /api/items` returns saved item reports.
@@ -39,7 +51,7 @@ Open `http://localhost:3000`. The Express server serves the built frontend and h
 
 Reports require a valid Lost/Found type, an approved category and campus location, a 3-80 character title, a 10-digit Indian mobile number, and a 10-500 character description. Claims require a 5-20 character alphanumeric PRN/roll number and 10-500 characters of ownership proof. Invalid submissions return HTTP 400 with field-specific errors; successful submissions return a success message.
 
-Item reports and claims are persisted in `server/data/items.json` and `server/data/claims.json`. The server initializes the item file from `server/data/default-items.json` on first run. Runtime data files are ignored by Git.
+Item reports and claims are stored in JSON files in `server/data` by default. Set `DATA_DIR` to choose a different writable data directory. The server initializes the item file from `server/data/default-items.json` on first run. Runtime data files are ignored by Git.
 
 ## Test
 

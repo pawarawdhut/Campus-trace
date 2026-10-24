@@ -8,7 +8,9 @@ import { validateClaim, validateItem } from './validation.js';
 
 const serverDirectory = path.dirname(fileURLToPath(import.meta.url));
 const projectDirectory = path.resolve(serverDirectory, '..');
-const defaultDataDirectory = path.join(serverDirectory, 'data');
+const defaultDataDirectory = process.env.DATA_DIR
+  ? path.resolve(process.env.DATA_DIR)
+  : path.join(serverDirectory, 'data');
 const defaultItemsFile = path.join(defaultDataDirectory, 'default-items.json');
 const maxBodySize = 16 * 1024;
 

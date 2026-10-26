@@ -56,6 +56,8 @@ Item reports and claims are stored in JSON files in `server/data` by default. Se
 
 The admin page is available at `/admin`. Locally, the demo password is `123456789` unless overridden with `ADMIN_PASSWORD`. In production, a strong, private `ADMIN_PASSWORD` environment variable is required. The page shows item reports stored in `server/data/items.json` as well as submitted claims. Admin sessions use an HTTP-only cookie and expire after eight hours; signing out ends the session. Configure `ADMIN_PASSWORD` in the hosting provider's environment settings for deployment. Keep this password and claim data private.
 
+The Render Blueprint installs development dependencies during its build because Vite is needed to compile the frontend; the production start command runs only the Express server.
+
 ## Test
 
 ```sh

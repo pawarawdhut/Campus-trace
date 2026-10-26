@@ -8,7 +8,7 @@ const locations = new Set([
 ]);
 
 function readTextField(input, field, errors) {
-  if (typeof input !== 'string') {
+  if (typeof input !== 'string' || input.trim() === '') {
     errors[field] = 'This field is required.';
     return '';
   }
@@ -41,10 +41,12 @@ export function validateClaim(input) {
   const source = input && typeof input === 'object' && !Array.isArray(input) ? input : {};
   const errors = {};
   const claim = {
+    itemId: Number.isSafeInteger(source.itemId) && source.itemId > 0 ? source.itemId : null,
     prn: readTextField(source.prn, 'prn', errors),
     proof: readTextField(source.proof, 'proof', errors),
   };
 
+  if (claim.itemId === null) errors.itemId = 'Select a found item to claim.';
   if (!/^[a-zA-Z0-9-]{5,20}$/.test(claim.prn)) {
     errors.prn = 'Enter a PRN or roll number between 5 and 20 letters, numbers, or hyphens.';
   }

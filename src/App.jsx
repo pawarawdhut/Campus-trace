@@ -3,6 +3,47 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import './App.css';
 
+const categories = ['Electronics', 'Stationery', 'Identity/Cards', 'Keys', 'Other'];
+const locations = [
+  'Central Library',
+  'Student Cafeteria',
+  'Sports Complex',
+  'Main Academic Building',
+  'Hostel Block A/B',
+];
+
+function validateItemForm(formData) {
+  const errors = {};
+  const item = Object.fromEntries(
+    Object.entries(formData).map(([field, value]) => [field, typeof value === 'string' ? value.trim() : '']),
+  );
+
+  if (!['Lost', 'Found'].includes(item.type)) errors.type = 'Select Lost or Found.';
+  if (item.title.length < 3 || item.title.length > 80) errors.title = 'Title must be between 3 and 80 characters.';
+  if (!categories.includes(item.category)) errors.category = 'Select a valid item category.';
+  if (!locations.includes(item.location)) errors.location = 'Select a valid campus location.';
+  if (!/^[6-9]\d{9}$/.test(item.contact)) errors.contact = 'Enter a valid 10-digit mobile number.';
+  if (item.desc.length < 10 || item.desc.length > 500) errors.desc = 'Description must be between 10 and 500 characters.';
+
+  return errors;
+}
+
+function validateClaimForm(claimData, claimItem) {
+  const errors = {};
+  const prn = claimData.prn.trim();
+  const proof = claimData.proof.trim();
+
+  if (!claimItem || claimItem.type !== 'Found') errors.itemId = 'Select an available found item to claim.';
+  if (!/^[a-zA-Z0-9-]{5,20}$/.test(prn)) {
+    errors.prn = 'Enter a PRN or roll number between 5 and 20 letters, numbers, or hyphens.';
+  }
+  if (proof.length < 10 || proof.length > 500) {
+    errors.proof = 'Ownership proof must be between 10 and 500 characters.';
+  }
+
+  return errors;
+}
+
 export default function App() {
   const [items, setItems] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -23,6 +64,7 @@ export default function App() {
   const [errors, setErrors] = useState({});
   const [claimData, setClaimData] = useState({ prn: '', proof: '' });
   const [claimErrors, setClaimErrors] = useState({});
+  const [claimItem, setClaimItem] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const showAlert = (type, message) => {
@@ -31,14 +73,35 @@ export default function App() {
   };
 
   useEffect(() => {
-    fetch('/api/items')
-      .then(async (response) => {
+    let isMounted = true;
+    let isInitialLoad = true;
+    let lastRefreshError = '';
+    const refreshItems = async () => {
+      try {
+        const response = await fetch('/api/items', { cache: 'no-store' });
         const result = await response.json();
         if (!response.ok) throw new Error(result.message || 'Unable to load campus records.');
-        setItems(result.items);
-      })
-      .catch((error) => showAlert('danger', error.message))
-      .finally(() => setIsLoading(false));
+        if (isMounted) {
+          setItems(result.items);
+          lastRefreshError = '';
+        }
+      } catch (error) {
+        if (isMounted && error.message !== lastRefreshError) {
+          showAlert('danger', error.message);
+          lastRefreshError = error.message;
+        }
+      } finally {
+        if (isMounted && isInitialLoad) setIsLoading(false);
+        isInitialLoad = false;
+      }
+    };
+
+    refreshItems();
+    const refreshInterval = window.setInterval(refreshItems, 5000);
+    return () => {
+      isMounted = false;
+      window.clearInterval(refreshInterval);
+    };
   }, []);
 
   const handleChange = (e) => {
@@ -51,8 +114,11 @@ export default function App() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const validationErrors = validateItemForm(formData);
+    setErrors(validationErrors);
+    if (Object.keys(validationErrors).length > 0) return;
+
     setIsSubmitting(true);
-    setErrors({});
     try {
       const response = await fetch('/api/items', {
         method: 'POST',
@@ -101,15 +167,30 @@ export default function App() {
     }
   };
 
+  const handleFoundItemReport = (item) => {
+    setFormData({
+      type: 'Found',
+      title: '',
+      category: '',
+      location: item.location,
+      contact: '',
+      desc: '',
+    });
+    setErrors({});
+  };
+
   const handleClaimSubmit = async (e) => {
     e.preventDefault();
-    setClaimErrors({});
+    const validationErrors = validateClaimForm(claimData, claimItem);
+    setClaimErrors(validationErrors);
+    if (Object.keys(validationErrors).length > 0) return;
+
     setIsSubmitting(true);
     try {
       const response = await fetch('/api/claims', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(claimData),
+        body: JSON.stringify({ ...claimData, itemId: claimItem?.id }),
       });
       const result = await response.json();
       if (!response.ok) {
@@ -117,6 +198,7 @@ export default function App() {
         throw new Error(result.message || 'Unable to submit your claim.');
       }
       setClaimData({ prn: '', proof: '' });
+      setClaimItem(null);
       window.bootstrap.Modal.getInstance(document.getElementById('claimModal'))?.hide();
       showAlert('success', result.message);
     } catch (error) {
@@ -256,10 +338,13 @@ export default function App() {
             ) : (
               filteredItems.map(item => {
                 const isLost = item.type === 'Lost';
+                const isComplete = item.status === 'Complete';
                 return (
                   <div key={item.id} className="col-12 col-md-6 col-lg-4">
                     <div className={`card item-card h-100 ${isLost ? 'lost-card' : 'found-card'}`}>
-                      <span className={`badge status-badge ${isLost ? 'bg-danger' : 'bg-success'}`}>{item.type}</span>
+                      <span className={`badge status-badge ${isComplete ? 'bg-secondary' : isLost ? 'bg-danger' : 'bg-success'}`}>
+                        {isComplete ? 'Complete' : item.type}
+                      </span>
                       <div className="card-body p-4 d-flex flex-column">
                         <div className="mb-2 fs-4">
                           <i className={`bi ${isLost ? 'bi-search text-danger' : 'bi-check-circle text-success'}`}></i>
@@ -275,13 +360,32 @@ export default function App() {
                         </ul>
 
                         <div className="d-flex gap-2">
-                          <button 
-                            className={`btn btn-sm flex-grow-1 ${isLost ? 'btn-outline-primary' : 'btn-primary'}`} 
-                            data-bs-toggle="modal" 
-                            data-bs-target="#claimModal"
-                          >
-                            {isLost ? 'I Found This' : 'Claim Item'}
-                          </button>
+                          {isLost ? (
+                            <button
+                              className="btn btn-outline-primary btn-sm flex-grow-1"
+                              data-bs-toggle="modal"
+                              data-bs-target="#reportModal"
+                              onClick={() => handleFoundItemReport(item)}
+                            >
+                              I Found This
+                            </button>
+                          ) : isComplete ? (
+                            <button className="btn btn-secondary btn-sm flex-grow-1" type="button" disabled>
+                              Claim Completed
+                            </button>
+                          ) : (
+                            <button
+                              className="btn btn-primary btn-sm flex-grow-1"
+                              data-bs-toggle="modal"
+                              data-bs-target="#claimModal"
+                              onClick={() => {
+                                setClaimItem(item);
+                                setClaimErrors({});
+                              }}
+                            >
+                              Claim Item
+                            </button>
+                          )}
                           <button onClick={() => handleDelete(item.id)} className="btn btn-outline-danger btn-sm" title="Delete Log">
                             <i className="bi bi-trash"></i>
                           </button>
@@ -442,6 +546,10 @@ export default function App() {
               <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div className="modal-body">
+              <p className="small text-muted">
+                Claiming: <strong>{claimItem?.title ?? 'Select a found item from the campus logs.'}</strong>
+              </p>
+              <div className="error-msg mb-2">{claimErrors.itemId}</div>
               <p className="small text-muted">Provide your student details and ownership proof.</p>
               <form onSubmit={handleClaimSubmit} noValidate>
                 <div className="mb-3">
@@ -484,7 +592,9 @@ export default function App() {
       <footer className="py-4 border-top border-secondary bg-dark text-light text-center">
         <div className="container">
           <p className="mb-1 fw-bold">CampusTrace Node.js Application</p>
-          <p className="small mb-0 text-muted">&copy; 2026 CampusTrace System.</p>
+          <p className="small mb-0 text-muted">
+            &copy; 2026 CampusTrace System. <a className="link-light ms-2" href="/admin">Admin</a>
+          </p>
         </div>
       </footer>
     </div>

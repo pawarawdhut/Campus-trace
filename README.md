@@ -10,15 +10,13 @@ CampusTrace is an individual Express.js web application for reporting lost and f
 
 ## Run in development
 
-Open two terminals in the project directory:
+Run in one terminal in the project directory:
 
 ```sh
-npm run server
 npm run dev
 ```
 
-Open the Vite URL shown in the second terminal. Vite forwards `/api` requests to the Node.js server at `http://localhost:3000`.
-The local demo admin password defaults to `123456789`. To use a different password, set `$env:ADMIN_PASSWORD = "your-private-password"` in the server terminal before starting it.
+`npm run dev` starts both the Vite frontend and Express API. Open the Vite URL shown in the terminal; frontend API calls are proxied to the backend automatically. The local demo admin password defaults to `123456789`. To use a different password, set `$env:ADMIN_PASSWORD = "your-private-password"` before starting the app.
 
 ## Run as a Node.js web application
 
@@ -34,7 +32,6 @@ Set a strong `ADMIN_PASSWORD` in the server environment to enable the protected 
 ## Deploy to Render
 
 This repository includes a Render Blueprint in `render.yaml`. To deploy:
-<<<<<<< HEAD
 
 1. Push the project to GitHub.
 2. Sign in to Render and choose **New + → Blueprint**.
@@ -42,8 +39,6 @@ This repository includes a Render Blueprint in `render.yaml`. To deploy:
 4. Wait for the build and deploy to finish. Open the `onrender.com` URL shown by Render.
 5. Check that the app loads and that `<your-render-url>/api/items` returns the seeded items.
 
-=======
->>>>>>> 1556b85cf6f80118aa37913c259c6ad430f5845a
 The Blueprint uses Render's free web-service plan for a presentation/demo. Its filesystem is ephemeral, so reports and claims submitted by users can be lost when the service restarts or redeploys. The included JSON files are suitable for a demo, not durable production storage. Use a persistent disk or migrate the app to a managed database before relying on stored records.
 
 ## Routes and validation

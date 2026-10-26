@@ -1,7 +1,7 @@
 
 # CampusTrace
 
-CampusTrace is an individual Express.js web application for reporting lost and found items on campus. The React and Vite frontend uses an Express server with modular API routing, server-side validation, and JSON file storage.
+CampusTrace is an individual Express.js web application for reporting lost and found items on campus. The React and Vite frontend uses an Express server, server-side validation, and a SQLite database for item records. Ownership claims remain in a JSON file.
 
 ## Requirements
 
@@ -44,15 +44,24 @@ The Blueprint uses Render's free web-service plan for a presentation/demo. Its f
 ## Routes and validation
 
 - `GET /api/items` returns saved item reports.
-- `POST /api/items` validates and saves a lost/found item report.
-- `DELETE /api/items/:id` removes an item report.
+- `GET /api/items/:id` returns one report by numeric ID.
+- `POST /api/items` validates and creates a lost/found item report.
+- `PUT /api/items/:id` validates and replaces a report.
+- `PATCH /api/items/:id` validates and partially updates a report.
+- `DELETE /api/items/:id` removes a report.
 - `POST /api/reset` restores the seeded item reports.
 - `POST /api/claims` validates and saves an ownership claim.
 - `GET /admin` provides a password-protected admin page. Admins can review all item reports and claims, view submitted PRNs and ownership proof, then mark claims Pending, Approved, or Rejected.
 
 Reports require a valid Lost/Found type, an approved category and campus location, a 3-80 character title, a 10-digit Indian mobile number, and a 10-500 character description. Claims can be submitted for Found items only and include the selected item, a 5-20 character alphanumeric PRN/roll number, and 10-500 characters of ownership proof. Invalid submissions return HTTP 400 with field-specific errors; successful submissions return a success message.
 
-Item reports and claims are stored in JSON files in `server/data` by default. Set `DATA_DIR` to choose a different writable data directory. The server initializes the item file from `server/data/default-items.json` on first run. Runtime data files are ignored by Git.
+Item reports are stored in `campus-trace.sqlite` in `server/data` by default. Set `DATA_DIR` to choose a different writable data directory. On first startup the server imports an existing `items.json` file when present, otherwise it seeds the SQLite database from `server/data/default-items.json`. Ownership claims remain in `claims.json`. Runtime database, WAL, and claims files are ignored by Git.
+
+## Postman
+
+Import `postman/CampusTrace.postman_collection.json` into Postman. Start the local server with `npm run dev` or `npm start`, select **CampusTrace CRUD API**, and run the collection. The collection creates a record and saves its ID for the read, PUT, PATCH, DELETE, and post-delete checks. To test a deployment, change the collection variable `baseUrl` to `https://<your-render-service>.onrender.com/api` before running it. The test scripts assert the expected HTTP status codes and response fields.
+
+For Render, follow the deployment steps above. The included free web-service configuration has an ephemeral filesystem: SQLite data may be lost when the service restarts or redeploys. Set `DATA_DIR` to a mounted persistent disk or move to a managed database for durable hosted records. Deployment must be completed from a Render account connected to the GitHub repository; the public service URL is assigned by Render.
 
 The admin page is available at `/admin`. Locally, the demo password is `123456789` unless overridden with `ADMIN_PASSWORD`. In production, a strong, private `ADMIN_PASSWORD` environment variable is required. The page shows item reports stored in `server/data/items.json` as well as submitted claims. Admin sessions use an HTTP-only cookie and expire after eight hours; signing out ends the session. Configure `ADMIN_PASSWORD` in the hosting provider's environment settings for deployment. Keep this password and claim data private.
 
@@ -66,4 +75,4 @@ npm run lint
 npm run build
 ```
 
-The HTTP tests exercise GET, valid and invalid POST inputs, DELETE, reset, malformed requests, and request-size limits against the Express server.
+The HTTP tests exercise CRUD operations, validation, claims, admin review, reset, malformed requests, and request-size limits against the Express server. `npm test`, `npm run lint`, and `npm run build` are the local verification commands.

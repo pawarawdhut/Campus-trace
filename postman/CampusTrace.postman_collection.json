@@ -1,0 +1,200 @@
+{
+  "info": {
+    "_postman_id": "d47464ba-1021-4d54-9f65-4c2652afbf54",
+    "name": "CampusTrace CRUD API",
+    "description": "Exercises item record creation, list and single-record retrieval, full and partial updates, and deletion. Change baseUrl to the deployed API URL before running against Render.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api"
+    },
+    {
+      "key": "recordId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "List records",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/items"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('returns records successfully', function () {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json().items).to.be.an('array');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create record",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"type\": \"Lost\",\n  \"title\": \"Postman test notebook\",\n  \"category\": \"Stationery\",\n  \"location\": \"Central Library\",\n  \"contact\": \"9876543210\",\n  \"desc\": \"Blue notebook created from the Postman CRUD collection.\"\n}"
+        },
+        "url": "{{baseUrl}}/items"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('creates a record', function () {",
+              "  pm.response.to.have.status(201);",
+              "  pm.expect(pm.response.json().item.id).to.exist;",
+              "  pm.collectionVariables.set('recordId', pm.response.json().item.id);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get created record",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/items/{{recordId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('retrieves the created record', function () {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json().item.id).to.eql(Number(pm.collectionVariables.get('recordId')));",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Replace record (PUT)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"type\": \"Lost\",\n  \"title\": \"Updated Postman notebook\",\n  \"category\": \"Stationery\",\n  \"location\": \"Central Library\",\n  \"contact\": \"9876543210\",\n  \"desc\": \"Updated notebook details submitted as a full record replacement.\"\n}"
+        },
+        "url": "{{baseUrl}}/items/{{recordId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('replaces the record', function () {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json().item.title).to.eql('Updated Postman notebook');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Partially update record (PATCH)",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Patched Postman notebook\"\n}"
+        },
+        "url": "{{baseUrl}}/items/{{recordId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('partially updates the record', function () {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json().item.title).to.eql('Patched Postman notebook');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Delete record",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": "{{baseUrl}}/items/{{recordId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('deletes the record', function () {",
+              "  pm.response.to.have.status(200);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Verify deleted record returns 404",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/items/{{recordId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('deleted record is not found', function () {",
+              "  pm.response.to.have.status(404);",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

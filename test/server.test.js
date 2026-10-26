@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { after, before, describe, it } from 'node:test';
@@ -91,6 +91,64 @@ describe('CampusTrace HTTP routes', () => {
     assert.ok(body.errors.location);
     assert.ok(body.errors.contact);
     assert.ok(body.errors.desc);
+  });
+
+  it('supports retrieving, replacing, partially updating, and deleting an individual record', async () => {
+    const createResponse = await fetch(`${baseUrl}/api/items`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'Found',
+        title: 'Blue umbrella',
+        category: 'Other',
+        location: 'Central Library',
+        contact: '9876543210',
+        desc: 'Blue umbrella with a curved wooden handle.',
+      }),
+    });
+    const createdBody = await createResponse.json();
+    const recordId = createdBody.item.id;
+    assert.equal(createResponse.status, 201);
+    assert.ok((await readdir(dataDirectory)).includes('campus-trace.sqlite'));
+
+    const getResponse = await fetch(`${baseUrl}/api/items/${recordId}`);
+    const getBody = await getResponse.json();
+    assert.equal(getResponse.status, 200);
+    assert.equal(getBody.item.title, 'Blue umbrella');
+
+    const invalidIdResponse = await fetch(`${baseUrl}/api/items/not-a-number`);
+    assert.equal(invalidIdResponse.status, 400);
+    const missingResponse = await fetch(`${baseUrl}/api/items/9999999999999`);
+    assert.equal(missingResponse.status, 404);
+
+    const replacement = {
+      type: 'Found',
+      title: 'Red umbrella',
+      category: 'Other',
+      location: 'Central Library',
+      contact: '9876543210',
+      desc: 'Red umbrella with a curved wooden handle.',
+    };
+    const putResponse = await fetch(`${baseUrl}/api/items/${recordId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(replacement),
+    });
+    assert.equal(putResponse.status, 200);
+    assert.equal((await putResponse.json()).item.title, 'Red umbrella');
+
+    const patchResponse = await fetch(`${baseUrl}/api/items/${recordId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Red umbrella, found' }),
+    });
+    assert.equal(patchResponse.status, 200);
+    assert.equal((await patchResponse.json()).item.title, 'Red umbrella, found');
+
+    const deleteResponse = await fetch(`${baseUrl}/api/items/${recordId}`, { method: 'DELETE' });
+    assert.equal(deleteResponse.status, 200);
+    const deletedResponse = await fetch(`${baseUrl}/api/items/${recordId}`);
+    assert.equal(deletedResponse.status, 404);
   });
 
   it('validates and stores ownership claims through POST', async () => {

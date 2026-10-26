@@ -5,6 +5,7 @@ import { randomBytes, timingSafeEqual } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
+import { createItemsDatabase } from './database.js';
 import { validateClaim, validateItem } from './validation.js';
 
 const serverDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -12,7 +13,7 @@ const projectDirectory = path.resolve(serverDirectory, '..');
 const defaultDataDirectory = process.env.DATA_DIR
   ? path.resolve(process.env.DATA_DIR)
   : path.join(serverDirectory, 'data');
-const defaultItemsFile = path.join(defaultDataDirectory, 'default-items.json');
+const defaultItemsFile = path.join(serverDirectory, 'data', 'default-items.json');
 const maxBodySize = 16 * 1024;
 const adminSessionCookie = 'campus_admin_session';
 const adminSessionDurationMs = 8 * 60 * 60 * 1000;
@@ -20,15 +21,6 @@ const claimStatuses = new Set(['Pending', 'Approved', 'Rejected']);
 const localAdminPassword = process.env.NODE_ENV === 'production'
   ? process.env.ADMIN_PASSWORD
   : process.env.ADMIN_PASSWORD ?? '123456789';
-
-async function readJson(filePath) {
-  try {
-    return JSON.parse(await readFile(filePath, 'utf8'));
-  } catch (error) {
-    if (error.code === 'ENOENT') return null;
-    throw error;
-  }
-}
 
 async function writeJson(filePath, value) {
   await mkdir(path.dirname(filePath), { recursive: true });
@@ -63,21 +55,10 @@ export function createApp({
 } = {}) {
   const app = express();
   const apiRouter = express.Router();
-  const itemsFile = path.join(dataDirectory, 'items.json');
+  const itemsDatabase = createItemsDatabase(dataDirectory, defaultItemsFile);
   const claimsFile = path.join(dataDirectory, 'claims.json');
   const adminSessions = new Map();
-
-  async function loadItems() {
-    const items = await readJson(itemsFile);
-    if (items !== null) {
-      if (!Array.isArray(items)) throw new Error('Stored campus records must be a JSON array.');
-      return items;
-    }
-    const defaults = await readJson(defaultItemsFile);
-    if (!Array.isArray(defaults)) throw new Error('Default campus records are missing or invalid.');
-    await writeJson(itemsFile, defaults);
-    return defaults;
-  }
+  app.locals.itemsDatabase = itemsDatabase;
 
   app.disable('x-powered-by');
   app.use(express.json({ limit: maxBodySize }));
@@ -141,7 +122,7 @@ export function createApp({
   }));
 
   apiRouter.get('/admin/items', asyncRoute(async (request, response) => {
-    response.json({ items: await loadItems() });
+    response.json({ items: itemsDatabase.list() });
   }));
 
   apiRouter.patch('/admin/claims/:id', asyncRoute(async (request, response) => {
@@ -166,7 +147,7 @@ export function createApp({
   }));
 
   apiRouter.get('/items', asyncRoute(async (request, response) => {
-    const [items, claims] = await Promise.all([loadItems(), loadClaims(claimsFile)]);
+    const [items, claims] = await Promise.all([itemsDatabase.list(), loadClaims(claimsFile)]);
     const completedItemIds = new Set(
       claims.filter((claim) => claim.status === 'Approved').map((claim) => claim.itemId),
     );
@@ -178,16 +159,82 @@ export function createApp({
     });
   }));
 
+  apiRouter.get('/items/:id', asyncRoute(async (request, response) => {
+    if (!/^\d+$/.test(request.params.id)) {
+      response.status(400).json({ message: 'Campus record ID must be numeric.' });
+      return;
+    }
+    const id = Number(request.params.id);
+    const item = itemsDatabase.get(id);
+    if (!item) {
+      response.status(404).json({ message: 'Campus record not found.' });
+      return;
+    }
+    const claims = await loadClaims(claimsFile);
+    const isComplete = claims.some((claim) => claim.itemId === id && claim.status === 'Approved');
+    response.setHeader('Cache-Control', 'no-store');
+    response.json({ item: isComplete ? { ...item, status: 'Complete' } : item });
+  }));
+
   apiRouter.post('/items', asyncRoute(async (request, response) => {
     const { data, errors } = validateItem(request.body);
     if (Object.keys(errors).length) {
       response.status(400).json({ message: 'Please correct the highlighted fields.', errors });
       return;
     }
-    const items = await loadItems();
-    const item = { id: Date.now(), ...data, date: 'Just now' };
-    await writeJson(itemsFile, [item, ...items]);
+    const item = { id: itemsDatabase.nextId(), ...data, date: 'Just now' };
+    itemsDatabase.create({ ...item, sort_order: itemsDatabase.nextSortOrder() });
     response.status(201).json({ message: 'Item report submitted successfully.', item });
+  }));
+
+  apiRouter.put('/items/:id', asyncRoute(async (request, response) => {
+    if (!/^\d+$/.test(request.params.id)) {
+      response.status(400).json({ message: 'Campus record ID must be numeric.' });
+      return;
+    }
+    const id = Number(request.params.id);
+    const currentItem = itemsDatabase.get(id);
+    if (!currentItem) {
+      response.status(404).json({ message: 'Campus record not found.' });
+      return;
+    }
+    if (!request.body || typeof request.body !== 'object' || Array.isArray(request.body)) {
+      response.status(400).json({ message: 'Request body must be a JSON object.' });
+      return;
+    }
+    const { data, errors } = validateItem(request.body);
+    if (Object.keys(errors).length) {
+      response.status(400).json({ message: 'Please correct the highlighted fields.', errors });
+      return;
+    }
+    const item = { id, ...data, date: currentItem.date };
+    itemsDatabase.update(item);
+    response.json({ message: 'Campus record updated successfully.', item });
+  }));
+
+  apiRouter.patch('/items/:id', asyncRoute(async (request, response) => {
+    if (!/^\d+$/.test(request.params.id)) {
+      response.status(400).json({ message: 'Campus record ID must be numeric.' });
+      return;
+    }
+    const id = Number(request.params.id);
+    const currentItem = itemsDatabase.get(id);
+    if (!currentItem) {
+      response.status(404).json({ message: 'Campus record not found.' });
+      return;
+    }
+    if (!request.body || typeof request.body !== 'object' || Array.isArray(request.body)) {
+      response.status(400).json({ message: 'Request body must be a JSON object.' });
+      return;
+    }
+    const { data, errors } = validateItem({ ...currentItem, ...request.body });
+    if (Object.keys(errors).length) {
+      response.status(400).json({ message: 'Please correct the highlighted fields.', errors });
+      return;
+    }
+    const item = { id, ...data, date: currentItem.date };
+    itemsDatabase.update(item);
+    response.json({ message: 'Campus record updated successfully.', item });
   }));
 
   apiRouter.post('/claims', asyncRoute(async (request, response) => {
@@ -196,7 +243,7 @@ export function createApp({
       response.status(400).json({ message: 'Please correct the highlighted fields.', errors });
       return;
     }
-    const item = (await loadItems()).find((candidate) => candidate.id === data.itemId);
+    const item = itemsDatabase.get(data.itemId);
     if (!item || item.type !== 'Found') {
       response.status(400).json({
         message: 'Please correct the highlighted fields.',
@@ -220,9 +267,9 @@ export function createApp({
   }));
 
   apiRouter.post('/reset', asyncRoute(async (request, response) => {
-    const defaults = await readJson(defaultItemsFile);
+    const defaults = JSON.parse(await readFile(defaultItemsFile, 'utf8'));
     if (!Array.isArray(defaults)) throw new Error('Default campus records are missing or invalid.');
-    await writeJson(itemsFile, defaults);
+    itemsDatabase.replaceAll(defaults);
     response.json({ message: 'Campus records reset to the default list.', items: defaults });
   }));
 
@@ -231,14 +278,12 @@ export function createApp({
       response.status(400).json({ message: 'Campus record ID must be numeric.' });
       return;
     }
-    const items = await loadItems();
     const id = Number(request.params.id);
-    const updatedItems = items.filter((item) => item.id !== id);
-    if (updatedItems.length === items.length) {
+    const result = itemsDatabase.delete(id);
+    if (result.changes === 0) {
       response.status(404).json({ message: 'Campus record not found.' });
       return;
     }
-    await writeJson(itemsFile, updatedItems);
     response.json({ message: 'Campus record removed successfully.' });
   }));
 
@@ -289,7 +334,10 @@ export function createApp({
 }
 
 export function createAppServer(options) {
-  return createHttpServer(createApp(options));
+  const app = createApp(options);
+  const server = createHttpServer(app);
+  server.once('close', () => app.locals.itemsDatabase?.close());
+  return server;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

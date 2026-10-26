@@ -39,6 +39,8 @@ This repository includes a Render Blueprint in `render.yaml`. To deploy:
 4. Wait for the build and deploy to finish. Open the `onrender.com` URL shown by Render.
 5. Check that the app loads and that `<your-render-url>/api/items` returns the seeded items.
 
+The current deployment is available at [https://campus-trace-39hn.onrender.com](https://campus-trace-39hn.onrender.com). The free service uses an ephemeral filesystem, so SQLite records may be lost when the service restarts or redeploys.
+
 The Blueprint uses Render's free web-service plan for a presentation/demo. Its filesystem is ephemeral, so reports and claims submitted by users can be lost when the service restarts or redeploys. The included JSON files are suitable for a demo, not durable production storage. Use a persistent disk or migrate the app to a managed database before relying on stored records.
 
 ## Routes and validation

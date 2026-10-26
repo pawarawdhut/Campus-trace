@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CampusTrace Postman/Newman Test Run</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Segoe UI", Arial, sans-serif;
+        color: #172033;
+        background: #f3f6fb;
+      }
+      body {
+        margin: 0;
+        padding: 48px 20px;
+      }
+      main {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 36px;
+        border: 1px solid #dce3ed;
+        border-radius: 16px;
+        background: #fff;
+        box-shadow: 0 12px 32px #18243a12;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 30px;
+      }
+      .subtitle {
+        margin: 0 0 28px;
+        color: #526078;
+      }
+      .summary {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 28px;
+      }
+      .metric {
+        flex: 1;
+        padding: 18px;
+        border: 1px solid #dce3ed;
+        border-radius: 10px;
+        background: #f9fbfe;
+      }
+      .metric strong {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 26px;
+      }
+      .passed {
+        color: #157347;
+      }
+      .url {
+        overflow-wrap: anywhere;
+        color: #2459b3;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th, td {
+        padding: 13px 12px;
+        border-bottom: 1px solid #e5eaf1;
+        text-align: left;
+      }
+      th {
+        color: #526078;
+        font-size: 13px;
+        text-transform: uppercase;
+      }
+      .note {
+        margin-top: 24px;
+        padding: 14px 16px;
+        border-radius: 8px;
+        background: #f3f6fb;
+        color: #526078;
+        font-size: 14px;
+      }
+      @media (max-width: 620px) {
+        body { padding: 16px 10px; }
+        main { padding: 22px 16px; }
+        .summary { flex-direction: column; }
+        th, td { padding: 10px 7px; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>CampusTrace REST API</h1>
+      <p class="subtitle">Hosted CRUD collection run using the Postman/Newman CLI · 26 October 2026</p>
+      <section class="summary" aria-label="Run summary">
+        <div class="metric"><strong class="passed">7 / 7 passed</strong>Requests</div>
+        <div class="metric"><strong class="passed">7 / 7 passed</strong>Assertions</div>
+        <div class="metric"><strong>0</strong>Failures</div>
+      </section>
+      <p><strong>Public API:</strong> <span class="url">https://campus-trace-39hn.onrender.com/api</span></p>
+      <table>
+        <thead>
+          <tr><th>Request</th><th>Method</th><th>Result</th><th>Assertion</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>List records</td><td>GET /items</td><td class="passed">200 OK</td><td class="passed">Passed</td></tr>
+          <tr><td>Create record</td><td>POST /items</td><td class="passed">201 Created</td><td class="passed">Passed</td></tr>
+          <tr><td>Get created record</td><td>GET /items/:id</td><td class="passed">200 OK</td><td class="passed">Passed</td></tr>
+          <tr><td>Replace record</td><td>PUT /items/:id</td><td class="passed">200 OK</td><td class="passed">Passed</td></tr>
+          <tr><td>Partially update record</td><td>PATCH /items/:id</td><td class="passed">200 OK</td><td class="passed">Passed</td></tr>
+          <tr><td>Delete record</td><td>DELETE /items/:id</td><td class="passed">200 OK</td><td class="passed">Passed</td></tr>
+          <tr><td>Verify deletion</td><td>GET /items/:id</td><td class="passed">404 Not Found</td><td class="passed">Passed</td></tr>
+        </tbody>
+      </table>
+      <p class="note">This is a concise summary of the completed Newman run of the supplied Postman collection. It is not a screenshot of the Postman desktop/web UI; no request bodies or contact details are included.</p>
+    </main>
+  </body>
+</html>
